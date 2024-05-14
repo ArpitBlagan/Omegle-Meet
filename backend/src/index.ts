@@ -27,7 +27,7 @@ async function startServer() {
   wss.on("connection", (ws: WebSocket, req: Request) => {
     ws.on("message", async (data: any) => {
       const message = JSON.parse(data);
-      switch (message) {
+      switch (message.type) {
         case "connect":
           //@ts-ignore
           const transport = await router.createWebRtcTransport();
@@ -41,7 +41,13 @@ async function startServer() {
               dtlsParameters: transport.dtlsParameters,
             })
           );
-        case "message":
+          break;
+        case "icecandidate":
+          const transporter = transporters.get(message.id);
+          if (transporter) {
+            await transporter.addIceCandidate(message.icecandidate);
+          }
+          break;
       }
     });
     ws.on("close", () => {
