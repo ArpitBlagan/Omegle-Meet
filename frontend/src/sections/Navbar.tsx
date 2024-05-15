@@ -9,6 +9,7 @@ const Navbar = () => {
         <Link to="/">Duck</Link>
       </div>
       <div className="flex-1 flex items-center gap-2 justify-end">
+        <Link to="/room">Create Room</Link>
         <Link to="/signup">Signup</Link>
         <Link to="/signin">Signin</Link>
       </div>

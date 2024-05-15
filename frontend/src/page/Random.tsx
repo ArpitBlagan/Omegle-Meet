@@ -42,14 +42,89 @@ const Random = () => {
       const message = JSON.parse(data.data);
       switch (message.type) {
         case "createOffer":
-
+          pcc.onnegotiationneeded = async () => {
+            const offer = await pcc.createOffer();
+            await pcc.setLocalDescription(offer);
+            sock.send(
+              JSON.stringify({
+                type: "createOffer",
+                to: message.sendTo,
+                offer,
+              })
+            );
+            pcc.onicecandidate = (event) => {
+              if (event.candidate) {
+                socket?.send(
+                  JSON.stringify({
+                    type: "iceCandidate",
+                    by: "sender",
+                    candidate: event.candidate,
+                    to: message.sendTo,
+                    from: id,
+                  })
+                );
+              }
+            };
+          };
+          return;
         case "createAns":
-
+          pcc.setRemoteDescription(message.offer);
+          pcc.createAnswer().then((answer) => {
+            pcc.setLocalDescription(answer);
+            sock.send(
+              JSON.stringify({
+                type: "createAns",
+                answer,
+                to: message.from,
+              })
+            );
+          });
+          return;
+        case "getAns":
+          pcc.setRemoteDescription(message.ans);
+          return;
         case "iceCandidate":
+          (async function () {
+            // code to be executed immediately
+            await pcc.addIceCandidate(message.candidate);
+          })();
+          console.log("iceCandidateee");
+          if (message.by == "sender") {
+            console.log("candidate from sender.");
+            pcc.onicecandidate = (event) => {
+              if (event.candidate) {
+                sock.send(
+                  JSON.stringify({
+                    type: "iceCandidate",
+                    by: "not",
+                    candidate: event.candidate,
+                    to: message.from,
+                  })
+                );
+              }
+            };
+          } else {
+            console.log("reciver's icecandidate");
+            stream?.getTracks().forEach((track) => {
+              pcc.addTrack(track);
+            });
+          }
+          return;
 
         default:
           console.log("on default type", message);
       }
+    });
+    pcc.ontrack = (event: any) => {
+      console.log("getting tracks", event.track);
+      //@ts-ignore
+      otherRef.current.srcObject = new MediaStream([event.track]);
+      //@ts-ignore
+      otherRef.current.play();
+    };
+    stream?.getTracks().forEach((track) => {
+      console.log("sending track to remote user");
+      pcc.addTrack(track);
     });
     return () => {
       // Cleanup: Stop all tracks when the component unmounts
@@ -66,12 +141,18 @@ const Random = () => {
     <div className="min-h-1/2 flex flex-col gap-3 mt-2">
       <div className="grid md:grid-cols-2 gap-3">
         <div className="">
-          <video
-            ref={otherRef}
-            height="520"
-            width="630"
-            className="rounded-xl"
-          />
+          {otherRef.current ? (
+            <video
+              ref={otherRef}
+              height="520"
+              width="630"
+              className="rounded-xl"
+            />
+          ) : (
+            <div className="flex items-center justify-centre">
+              <p>Loading...</p>
+            </div>
+          )}
           <p>Random</p>
         </div>
         <div className="flex flex-col">
@@ -85,7 +166,20 @@ const Random = () => {
         </div>
       </div>
       <div className=" flex gap-4 items-center">
-        <Button variant={"destructive"}>next</Button>
+        <Button
+          variant={"destructive"}
+          onClick={(e) => {
+            e.preventDefault();
+            socket?.send(
+              JSON.stringify({
+                type: "leaveGroup",
+                id: id,
+              })
+            );
+          }}
+        >
+          next
+        </Button>
         <Button
           onClick={(e) => {
             e.preventDefault();
@@ -99,6 +193,9 @@ const Random = () => {
               );
             } else {
               setReady(true);
+              if (socket) {
+                console.log("socket is ready");
+              }
               socket?.send(
                 JSON.stringify({
                   type: "ready",
