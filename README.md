@@ -1,5 +1,5 @@
 <h1>Omegel + Meet</h1>
-
+by <img src="./frontend/src/img/icon.png" height="100px" width="100px" />
 For runnig it locally
 clone it
 

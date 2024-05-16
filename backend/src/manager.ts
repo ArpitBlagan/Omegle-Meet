@@ -70,6 +70,7 @@ export class RandomManager {
     }
     if (keys.length < 2) {
       // throw new Error("Map must contain at least two elements.");
+      console.log("less than two online users");
       return;
     }
     const index1 = Math.floor(Math.random() * keys.length);
@@ -89,6 +90,10 @@ export class RandomManager {
     // this.addGrouped(key1, ws1);
     // this.addGrouped(key1, ws2);
     //tell ws1 to create offer
+    this.grouped.set(key1, ws1);
+    this.grouped.set(key2, ws2);
+    this.ready.delete(key1);
+    this.ready.delete(key2);
     ws1.send(
       JSON.stringify({
         type: "createOffer",
@@ -96,6 +101,7 @@ export class RandomManager {
         from: key1,
       })
     );
+    return;
   }
   addReady(id: string, ws: WebSocket) {
     const socket = this.ready.get(id);

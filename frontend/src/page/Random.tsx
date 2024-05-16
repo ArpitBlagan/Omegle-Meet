@@ -6,8 +6,8 @@ import shortid from "shortid";
 const Random = () => {
   const [socket, setS] = useState<WebSocket | null>(null);
   const [ready, setReady] = useState(false);
-  const [candidatee, setCand] = useState<RTCIceCandidate | null>(null);
-  const [offer, setOffer] = useState<RTCSessionDescriptionInit | null>(null);
+  //const [candidatee, setCand] = useState<RTCIceCandidate | null>(null);
+  //const [offer, setOffer] = useState<RTCSessionDescriptionInit | null>(null);
   //const [video, setVideo] = useState(true);
   //const [audio, setAudio] = useState(true);
   const [text, setText] = useState("");
@@ -57,7 +57,7 @@ const Random = () => {
     pcc.onicecandidate = (event) => {
       if (event.candidate && !ok) {
         ok = true;
-        setCand(event.candidate);
+        //setCand(event.candidate);
         sock?.send(
           JSON.stringify({
             type: "iceCandidate",
@@ -68,7 +68,7 @@ const Random = () => {
           })
         );
       } else {
-        console.log("something went wrong");
+        console.log("something went wrong", ok);
       }
     };
     if (stream) {
@@ -112,10 +112,13 @@ const Random = () => {
           if (pcc) {
             console.log("there is RTCPeer connection");
           }
-          handleCreateOffer(pcc, sock, message.sendTo, idd);
+          await handleCreateOffer(pcc, sock, message.sendTo, message.from);
           return;
         case "createAns":
-          console.log("creating ans");
+          console.log("creating ans", message);
+          if (!message.offer) {
+            return;
+          }
           pcc.setRemoteDescription(message.offer).then(async () => {
             pcc.createAnswer().then(async (answer) => {
               try {
@@ -128,26 +131,11 @@ const Random = () => {
                     to: message.from,
                   })
                 );
-                if (stream) {
-                  stream?.getTracks().forEach((track) => {
-                    pcc.addTrack(track);
-                  });
-                } else {
-                  navigator.mediaDevices
-                    .getUserMedia({ video: true, audio: false })
-                    .then((stream) => {
-                      setStream(stream);
-                      stream?.getTracks().forEach((track) => {
-                        pcc.addTrack(track);
-                      });
-                    });
-                }
               } catch (err) {
                 console.log(err);
               }
             });
           });
-
           return;
         case "getAns":
           console.log("getting ans");
@@ -179,6 +167,20 @@ const Random = () => {
             };
           } else {
             console.log("reciver's icecandidate");
+          }
+          if (stream) {
+            stream?.getTracks().forEach((track) => {
+              pcc.addTrack(track);
+            });
+          } else {
+            navigator.mediaDevices
+              .getUserMedia({ video: true, audio: false })
+              .then((stream) => {
+                setStream(stream);
+                stream?.getTracks().forEach((track) => {
+                  pcc.addTrack(track);
+                });
+              });
           }
           return;
 
