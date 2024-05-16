@@ -6,6 +6,8 @@ import shortid from "shortid";
 const Random = () => {
   const [socket, setS] = useState<WebSocket | null>(null);
   const [ready, setReady] = useState(false);
+  const [candidatee, setCand] = useState<RTCIceCandidate | null>(null);
+  const [offer, setOffer] = useState<RTCSessionDescriptionInit | null>(null);
   //const [video, setVideo] = useState(true);
   //const [audio, setAudio] = useState(true);
   const [text, setText] = useState("");
@@ -14,6 +16,7 @@ const Random = () => {
   const [stream, setStream] = useState<MediaStream | null>();
   const otherRef = useRef(null);
   const yourRef = useRef(null);
+
   const getMedia = () => {
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: false })
@@ -24,6 +27,68 @@ const Random = () => {
         yourRef.current.play();
         setStream(stream);
       });
+  };
+  const handleCreateOffer = async (
+    pcc: RTCPeerConnection,
+    sock: WebSocket,
+    sendTo: string,
+    idd: string
+  ) => {
+    pcc.onnegotiationneeded = async () => {
+      try {
+        console.log("working");
+        const offerr = await pcc.createOffer();
+        console.log("offer created");
+        await pcc.setLocalDescription(offerr);
+        sock.send(
+          JSON.stringify({
+            type: "createOffer",
+            to: sendTo,
+            from: idd,
+            offer: pcc.localDescription,
+          })
+        );
+      } catch (err) {
+        console.log("error while creating an offer", err);
+      }
+    };
+    console.log("reached to get ice candidate");
+    let ok = false;
+    pcc.onicecandidate = (event) => {
+      if (event.candidate && !ok) {
+        ok = true;
+        setCand(event.candidate);
+        sock?.send(
+          JSON.stringify({
+            type: "iceCandidate",
+            by: "sender",
+            candidate: event.candidate,
+            to: sendTo,
+            from: idd,
+          })
+        );
+      } else {
+        console.log("something went wrong");
+      }
+    };
+    if (stream) {
+      stream?.getTracks().forEach((track) => {
+        pcc.addTrack(track);
+      });
+    } else {
+      navigator.mediaDevices
+        .getUserMedia({ video: true, audio: false })
+        .then((stream) => {
+          //@ts-ignore
+          yourRef.current.srcObject = stream;
+          //@ts-ignore
+          yourRef.current.play();
+          setStream(stream);
+          stream?.getTracks().forEach((track) => {
+            pcc.addTrack(track);
+          });
+        });
+    }
   };
   useEffect(() => {
     //create an instance of RTCPeerConnection
@@ -37,62 +102,71 @@ const Random = () => {
     //create websocket connection and wait for events triggered by backend
     const sock = new WebSocket(`ws:localhost:8000`);
     setS(sock);
-    sock.onopen = () => {};
-    sock.addEventListener("message", (data) => {
+    sock.addEventListener("message", async (data) => {
       const message = JSON.parse(data.data);
       switch (message.type) {
         case "createOffer":
-          pcc.onnegotiationneeded = async () => {
-            const offer = await pcc.createOffer();
-            await pcc.setLocalDescription(offer);
-            sock.send(
-              JSON.stringify({
-                type: "createOffer",
-                to: message.sendTo,
-                offer,
-              })
-            );
-            pcc.onicecandidate = (event) => {
-              if (event.candidate) {
-                socket?.send(
-                  JSON.stringify({
-                    type: "iceCandidate",
-                    by: "sender",
-                    candidate: event.candidate,
-                    to: message.sendTo,
-                    from: id,
-                  })
-                );
-              }
-            };
-          };
+          console.log("creating offer");
+          sock.send(JSON.stringify({ cool: "fuck" }));
+          console.log(message.sendTo);
+          if (pcc) {
+            console.log("there is RTCPeer connection");
+          }
+          handleCreateOffer(pcc, sock, message.sendTo, idd);
           return;
         case "createAns":
-          pcc.setRemoteDescription(message.offer);
-          pcc.createAnswer().then((answer) => {
-            pcc.setLocalDescription(answer);
-            sock.send(
-              JSON.stringify({
-                type: "createAns",
-                answer,
-                to: message.from,
-              })
-            );
+          console.log("creating ans");
+          pcc.setRemoteDescription(message.offer).then(async () => {
+            pcc.createAnswer().then(async (answer) => {
+              try {
+                await pcc.setLocalDescription(answer);
+                console.log("sending ans");
+                sock.send(
+                  JSON.stringify({
+                    type: "createAns",
+                    answer: answer,
+                    to: message.from,
+                  })
+                );
+                if (stream) {
+                  stream?.getTracks().forEach((track) => {
+                    pcc.addTrack(track);
+                  });
+                } else {
+                  navigator.mediaDevices
+                    .getUserMedia({ video: true, audio: false })
+                    .then((stream) => {
+                      setStream(stream);
+                      stream?.getTracks().forEach((track) => {
+                        pcc.addTrack(track);
+                      });
+                    });
+                }
+              } catch (err) {
+                console.log(err);
+              }
+            });
           });
+
           return;
         case "getAns":
-          pcc.setRemoteDescription(message.ans);
+          console.log("getting ans");
+          await pcc.setRemoteDescription(message.answer);
           return;
         case "iceCandidate":
-          (async function () {
-            // code to be executed immediately
-            await pcc.addIceCandidate(message.candidate);
-          })();
           console.log("iceCandidateee");
+          // code to be executed immediately
+          try {
+            await pcc.addIceCandidate(message.candidate);
+          } catch (err) {
+            console.log(err);
+          }
           if (message.by == "sender") {
             console.log("candidate from sender.");
+            let ok = false;
             pcc.onicecandidate = (event) => {
-              if (event.candidate) {
+              if (event.candidate && !ok) {
+                ok = true;
                 sock.send(
                   JSON.stringify({
                     type: "iceCandidate",
@@ -105,9 +179,6 @@ const Random = () => {
             };
           } else {
             console.log("reciver's icecandidate");
-            stream?.getTracks().forEach((track) => {
-              pcc.addTrack(track);
-            });
           }
           return;
 
@@ -122,10 +193,7 @@ const Random = () => {
       //@ts-ignore
       otherRef.current.play();
     };
-    stream?.getTracks().forEach((track) => {
-      console.log("sending track to remote user");
-      pcc.addTrack(track);
-    });
+
     return () => {
       // Cleanup: Stop all tracks when the component unmounts
       stopStream();
@@ -141,18 +209,12 @@ const Random = () => {
     <div className="min-h-1/2 flex flex-col gap-3 mt-2">
       <div className="grid md:grid-cols-2 gap-3">
         <div className="">
-          {otherRef.current ? (
-            <video
-              ref={otherRef}
-              height="520"
-              width="630"
-              className="rounded-xl"
-            />
-          ) : (
-            <div className="flex items-center justify-centre">
-              <p>Loading...</p>
-            </div>
-          )}
+          <video
+            ref={otherRef}
+            height="520"
+            width="630"
+            className="rounded-xl"
+          />
           <p>Random</p>
         </div>
         <div className="flex flex-col">

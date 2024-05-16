@@ -71,18 +71,24 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
         RandomManager.getInstance().removeReady(message.id, ws);
         return;
       case "createAns":
-        const ss = RandomManager.getInstance().grouped.get(message.to);
+        console.log("createAns event");
+        const ss = RandomManager.getInstance().ready.get(message.to);
         if (ss) {
-          ss.send(JSON.stringify(message));
+          console.log("socket found");
+          ss.send(
+            JSON.stringify({
+              type: "getAns",
+              answer: message.answer,
+            })
+          );
         }
       case "createOffer":
-        const socket = RandomManager.getInstance().grouped.get(message.to);
+        const socket = RandomManager.getInstance().ready.get(message.to);
         if (socket) {
-          console.log("found the socket");
           socket.send(
             JSON.stringify({
               type: "createAns",
-              from: message.id,
+              from: message.from,
               offer: message.offer,
             })
           );
@@ -95,16 +101,13 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
         }
         return;
       case "iceCandidate":
-        const sockett = RandomManager.getInstance().grouped.get(message.to);
+        const sockett = RandomManager.getInstance().ready.get(message.to);
         if (sockett) {
-          console.log("socket found");
-          sockett.send(
-            JSON.stringify({
-              message,
-            })
-          );
+          sockett.send(JSON.stringify({ ...message }));
         }
         return;
+      default:
+        console.log("naaa");
     }
   });
   ws.on("close", () => {

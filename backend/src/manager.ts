@@ -68,13 +68,6 @@ export class RandomManager {
     for (const [key, value] of this.ready) {
       keys.push(key);
     }
-    console.log(
-      "ready users id's",
-      keys,
-      "cool",
-      this.ready.size,
-      this.online.length
-    );
     if (keys.length < 2) {
       // throw new Error("Map must contain at least two elements.");
       return;
@@ -86,29 +79,30 @@ export class RandomManager {
     } while (index1 === index2);
     const key1 = keys[index1];
     const key2 = keys[index2];
+    console.log(key1, key2);
     const ws1 = this.ready.get(key1);
     const ws2 = this.ready.get(key2);
     if (!ws2 || !ws1) {
+      console.log("not workging...");
       return;
     }
-    this.addGrouped(key1, ws1);
-    this.addGrouped(key1, ws2);
+    // this.addGrouped(key1, ws1);
+    // this.addGrouped(key1, ws2);
     //tell ws1 to create offer
     ws1.send(
       JSON.stringify({
         type: "createOffer",
         sendTo: key2,
+        from: key1,
       })
     );
   }
   addReady(id: string, ws: WebSocket) {
-    console.log(this.ready.keys);
     const socket = this.ready.get(id);
     if (!socket) {
       console.log("adding new ready user");
       this.ready.set(id, ws);
     }
-    console.log("size of ready user", this.ready.size);
     this.getRandomAndConnect();
   }
   removeReady(id: string, ws: WebSocket) {
@@ -118,12 +112,16 @@ export class RandomManager {
     }
   }
   addGrouped(id: string, ws: WebSocket) {
+    this.ready.delete(id);
     const soc = this.grouped.get(id);
     if (!soc) {
       this.grouped.set(id, ws);
     }
   }
   removeGrouped(id: string, ws: WebSocket) {
+    if (!this.ready.get(id)) {
+      this.ready.set(id, ws);
+    }
     if (this.grouped.get(id)) {
       this.grouped.delete(id);
       this.addReady(id, ws);
