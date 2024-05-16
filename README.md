@@ -1,3 +1,6 @@
+<h1>Omegel + Meet</h1>
+
+For runnig it locally
 clone it
 
 ```bash
@@ -8,7 +11,6 @@ clone it
 ```
 
 <h2>Video calling app using webrtc with sfu backend (mediasoup).</h2>
-<h4>Omegel + Meet</h4>
 <p>
     This app is all about random video calls (RTCPeerConnection instance) and creating private rooms (mediasoup) 
 </p>
