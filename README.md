@@ -1,5 +1,5 @@
 <h1>Omegel + Meet</h1>
-by <img src="./frontend/src/img/icon.png" height="100px" width="100px" />
+
 For runnig it locally
 clone it
 
@@ -14,3 +14,6 @@ clone it
 <p>
     This app is all about random video calls (RTCPeerConnection instance) and creating private rooms (mediasoup) 
 </p>
+<div align="center">
+<img src="./frontend/src/img/icon.png" height="100px" width="100px" />
+</div>
