@@ -16,4 +16,5 @@ clone it
 </p>
 <div align="center">
 <img src="./frontend/src/img/icon.png" height="100px" width="100px" />
+<h4>Duck.io</h4>
 </div>
