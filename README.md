@@ -15,6 +15,6 @@ clone it
     This app is all about random video calls (RTCPeerConnection instance) and creating private rooms (mediasoup) 
 </p>
 <div align="center">
-<img src="./frontend/src/img/icon.png" height="100px" width="100px" />
+<img src="./frontend/src/img/icon.png" style="border-radius:100%" height="100px" width="100px" />
 <h4>Duck.io</h4>
 </div>
