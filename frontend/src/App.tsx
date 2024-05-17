@@ -5,7 +5,6 @@ import Footer from "./sections/Footer";
 import First from "./page/First";
 import Signup from "./page/Signup";
 import Signin from "./page/Signin";
-import Call from "./sections/Call";
 import Random from "./page/Random";
 import Room from "./sections/Room";
 function App() {

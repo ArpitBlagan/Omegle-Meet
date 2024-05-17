@@ -94,6 +94,7 @@ const Random = () => {
     //create an instance of RTCPeerConnection
     const pcc = new RTCPeerConnection();
     setPc(pcc);
+    console.log(pc);
     //create a random and unique id for user
     const idd = shortid.generate();
     setId(idd);
