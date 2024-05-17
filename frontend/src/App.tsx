@@ -7,6 +7,7 @@ import Signup from "./page/Signup";
 import Signin from "./page/Signin";
 import Random from "./page/Random";
 import Room from "./sections/Room";
+import Meet from "./page/Meet";
 function App() {
   return (
     <Router>
@@ -18,6 +19,7 @@ function App() {
         {/* <Route path="/calling" element={<Call />} /> */}
         <Route path="/random" element={<Random />} />
         <Route path="/room" element={<Room />} />
+        <Route path="/room:roomId" element={<Meet />} />
       </Routes>
       <Footer />
     </Router>

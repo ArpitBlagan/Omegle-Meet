@@ -49,15 +49,25 @@ const createWorker = async () => {
   return ww;
 };
 
-//const worker = createWorker();
+let worker: mediasoup.types.Worker<mediasoup.types.AppData>;
+(async function () {
+  worker = await createWorker();
+})();
 wss.on("connection", (ws: WebSocket, req: Request) => {
   RandomManager.getInstance().addOnline(ws);
   ws.on("message", async (data: any) => {
     const message = JSON.parse(data);
     switch (message.type) {
-      case "createRoom":
-      //const router = await (await worker).createRouter({ mediaCodecs });
-      //RoomManager.getInstance().addRouter(message.roomId, router);
+      case "joinRoom":
+        const id = message.id;
+        if (RoomManager.getInstance().rooms.get(id)) {
+        } else {
+          const router = await worker?.createRouter({ mediaCodecs });
+          RoomManager.getInstance().addRouter(message.roomId, router);
+        }
+        return;
+      case "createTransport":
+        return;
       case "deleteRoom":
         RoomManager.getInstance().deleteRouter(message.roomId);
         return;
