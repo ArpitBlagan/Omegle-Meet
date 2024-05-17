@@ -20,6 +20,13 @@ model User{
   password String
   instagram String ?
   snapchat String ?
-  roomsHistory String[]
+  createdAt DateTime @default(now())
+  room Rooms[]
+}
+model Rooms{
+  id String @id @default(uuid())
+  name String
+  user_id String
+  user User @relation(fields: [user_id],references: [id],onDelete: Cascade)
   createdAt DateTime
 }

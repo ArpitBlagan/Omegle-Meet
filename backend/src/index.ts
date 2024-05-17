@@ -1,12 +1,23 @@
 import express, { Request } from "express";
 import http from "http";
 import mediasoup, { types as mediasoupTypes } from "mediasoup";
+import cors from "cors";
 import { RoomManager } from "./manager";
 import dotenv from "dotenv";
+
 dotenv.config();
 import { WebSocket, WebSocketServer } from "ws";
 import { RandomManager } from "./manager";
+import { Router } from "express";
 const app = express();
+app.use(express.json());
+app.use(
+  cors({
+    origin: ["*", "http://localhost:5173"],
+    credentials: true,
+  })
+);
+app.use("/room", Router);
 const mediaCodecs: any = [
   {
     kind: "audio",

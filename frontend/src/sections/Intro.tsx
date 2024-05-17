@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import hero from "@/img/hero.png";
 import { Link } from "react-router-dom";
 
@@ -16,18 +15,18 @@ const Intro = () => {
       </div>
       <div className="w-full">
         <Link
-          className="w-1/2 rounded-xl border border-gray-300 py-2 px-4 bg-red-300 underline"
+          className="w-1/2 rounded-xl border border-gray-300 py-2 px-4 underline font-mono bg-gradient-to-r from-blue-600 via-red-300 to-indigo-400 inline-block text-transparent bg-clip-text"
           to="/random"
         >
           Start Fun
         </Link>
       </div>
       <p className="text-xl">
-        Duck is a revolutionary new app that{" "}
+        Duck is a revolutionary new web app that{" "}
         <span className="text-red-300">
           connects people from all around the globe in real-time{" "}
         </span>
-        , allowing them to engage in anonymous video chats.{" "}
+        , allowing them to engage in anonymous video chats. <hr />
       </p>
     </div>
   );
