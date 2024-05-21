@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import axios from "axios";
-const Room = () => {
+import toast from "react-hot-toast";
+const Room = (props: any) => {
   const [room, setR] = useState("");
   const createRoom = async () => {
     try {
@@ -20,6 +21,8 @@ const Room = () => {
         { withCredentials: true }
       );
       console.log(res.data);
+      props.setC(!props.change);
+      toast.success("room created successfully");
     } catch (err) {
       console.log(err);
     }
@@ -61,16 +64,13 @@ const Room = () => {
                   createRoom();
                 }}
                 size="sm"
-                className="px-3"
+                className="px-3 "
               >
                 Create
               </Button>
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-      <div className="flex flex-col justify-center items-start py-2 px-4 border border-gray-300 rounded-xl mt-3">
-        <h1>Other Rooms</h1>
       </div>
     </div>
   );

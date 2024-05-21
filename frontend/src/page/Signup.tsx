@@ -48,7 +48,7 @@ const Signup = () => {
           <Input
             placeholder="arpit@gmail.com"
             type="text"
-            {...register("name")}
+            {...register("email")}
           />
           {errors.email?.message && (
             <p className="text-red-300">{errors.email.message}</p>
@@ -56,7 +56,11 @@ const Signup = () => {
         </div>
         <div className="flex flex-col items-start">
           <label className="text-gray-300">Password*</label>
-          <Input placeholder="A43@3$$" type="text" {...register("password")} />
+          <Input
+            placeholder="A43@3$$"
+            type="password"
+            {...register("password")}
+          />
           {errors.password?.message && (
             <p className="text-red-300">{errors.password.message}</p>
           )}

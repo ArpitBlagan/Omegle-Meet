@@ -4,12 +4,24 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import axios from "axios";
+import { context } from "@/Contexxt";
+import { useNavigate } from "react-router-dom";
+import { useContext, useEffect } from "react";
 const registerSchema = z.object({
   email: z.string().email("please enter valid email"),
   password: z.string().min(6, "password shoudl be atleast 6 characters long"),
 });
 type registerType = z.infer<typeof registerSchema>;
 const Signin = () => {
+  const navigate = useNavigate();
+  const value = useContext(context);
+  useEffect(() => {
+    if (value?.isLoggedIn) {
+      navigate("/");
+    }
+  }, []);
   const {
     register,
     handleSubmit,
@@ -19,6 +31,22 @@ const Signin = () => {
   });
   const submit: SubmitHandler<registerType> = async (data) => {
     console.log(data);
+    try {
+      const res = await axios.post(
+        "http://localhost:8000/room/signin",
+        { email: data.email, password: data.password },
+        { withCredentials: true }
+      );
+      console.log(res.data);
+      toast.success("signin successfully");
+      value?.setE(res.data.email);
+      value?.setN(res.data.name);
+      value?.setL(true);
+      navigate("/");
+    } catch (err) {
+      console.log(err);
+      toast.error("something went wrong");
+    }
   };
   return (
     <div className=" flex justify-center items-center min-h-[80vh]">
@@ -49,7 +77,11 @@ const Signin = () => {
         </div>
         <div className="flex flex-col items-start">
           <label className="text-gray-300">Password*</label>
-          <Input placeholder="A43@3$$" type="text" {...register("password")} />
+          <Input
+            placeholder="A43@3$$"
+            type="password"
+            {...register("password")}
+          />
           {errors.password?.message && (
             <p className="text-red-300">{errors.password.message}</p>
           )}

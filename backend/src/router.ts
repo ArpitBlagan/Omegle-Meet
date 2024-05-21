@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import z from "zod";
+import path from "path";
 const prismaa = new PrismaClient();
 const loginSchema = z.object({
   email: z.string().email("please enter valid email"),
@@ -38,16 +39,23 @@ Router.route("/signin").post(async (req: Request, res: Response) => {
       process.env.SECRET as string
     );
     res.cookie("omeet", token, {
-      sameSite: "none",
       httpOnly: true,
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      sameSite: "none",
+      secure: true,
     });
-    res.status(200).json({ messsage: "signined in successfully" });
+    res.status(200).json({
+      messsage: "signined in successfully",
+      name: user?.name,
+      email,
+    });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "internal server error" });
   }
 });
 Router.route("/signup").post(async (req: Request, res: Response) => {
+  console.log("request coming");
   const { name, email, password } = req.body;
   const ff = registerSchema.safeParse({ email, name, password });
   if (!ff.success) {
@@ -76,16 +84,67 @@ Router.route("/signup").post(async (req: Request, res: Response) => {
     console.log(err);
   }
 });
+Router.route("/logout").post(async (req: Request, res: Response) => {
+  console.log("logout request");
+  //logic to remove the cookie from the browser and our case its name is omeet
+  res.clearCookie("omeet", {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+  });
+  res.status(200).json({ message: "logged out successfully" });
+});
 Router.use(async (req: Request, res: Response, next: NextFunction) => {
   const token = req.cookies.omeet;
-  jwt.verify(token, (error, decode) => {
+  if (!token) {
+    console.log("we are fucked up");
+  }
+  jwt.verify(token, process.env.SECRET as string, (error: any, decode: any) => {
     if (error) {
       console.log("error in middlware");
       return res.status(403).json({ message: "Authorization error" });
     }
-    console.log(decode);
-    req.user = decode;
+    req.user = decode.user;
     next();
   });
 });
-Router.route("/create").post().get();
+Router.route("/isloggedin").get(async (req: Request, res: Response) => {
+  console.log("checking user is loggedin or not");
+  res
+    .status(200)
+    .json({ isloggedin: true, name: req.user.name, email: req.user.email });
+});
+Router.route("/create")
+  .post(async (req: Request, res: Response) => {
+    console.log("createing a room");
+    const user = req.user;
+    const { name } = req.body;
+    try {
+      const data = await prismaa.rooms.create({
+        data: {
+          name,
+          user_id: user.id,
+        },
+      });
+      console.log(data);
+      res.status(201).json(data);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ message: "internal server error" });
+    }
+  })
+  .get(async (req: Request, res: Response) => {
+    const user = req.user;
+    try {
+      const rooms = await prismaa.rooms.findMany({
+        where: {
+          user_id: user.id,
+        },
+      });
+      console.log("getting", rooms);
+      res.status(200).json(rooms);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ message: "internal server error" });
+    }
+  });

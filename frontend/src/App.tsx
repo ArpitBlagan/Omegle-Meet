@@ -6,22 +6,27 @@ import First from "./page/First";
 import Signup from "./page/Signup";
 import Signin from "./page/Signin";
 import Random from "./page/Random";
-import Room from "./sections/Room";
+import CreateRoom from "@/page/CreateRoom";
 import Meet from "./page/Meet";
+import { Toaster } from "react-hot-toast";
+import Contexxt from "./Contexxt";
 function App() {
   return (
     <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<First />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/signin" element={<Signin />} />
-        {/* <Route path="/calling" element={<Call />} /> */}
-        <Route path="/random" element={<Random />} />
-        <Route path="/room" element={<Room />} />
-        <Route path="/room:roomId" element={<Meet />} />
-      </Routes>
-      <Footer />
+      <Contexxt>
+        <Toaster />
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<First />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/signin" element={<Signin />} />
+          {/* <Route path="/calling" element={<Call />} /> */}
+          <Route path="/random" element={<Random />} />
+          <Route path="/room" element={<CreateRoom />} />
+          <Route path="/room/:roomId" element={<Meet />} />
+        </Routes>
+        <Footer />
+      </Contexxt>
     </Router>
   );
 }

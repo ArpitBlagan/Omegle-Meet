@@ -15,7 +15,7 @@ const Intro = () => {
       </div>
       <div className="w-full">
         <Link
-          className="w-1/2 rounded-xl border border-gray-300 py-2 px-4 underline font-mono bg-gradient-to-r from-blue-600 via-red-300 to-indigo-400 inline-block text-transparent bg-clip-text"
+          className="w-1/2 rounded-xl border border-gray-300 py-2 px-4 text-gray-600 font-mono bg-green-400"
           to="/random"
         >
           Start Fun

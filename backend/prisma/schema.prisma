@@ -28,5 +28,5 @@ model Rooms{
   name String
   user_id String
   user User @relation(fields: [user_id],references: [id],onDelete: Cascade)
-  createdAt DateTime
+  createdAt DateTime @default(now())
 }
