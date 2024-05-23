@@ -72,9 +72,11 @@ const createWebRtcTransport = async (
     console.log("error while create webRtcTransport", err);
   }
 };
-const informConsumer = (roomId: any, userId: any, id: any) => {
+const informConsumer = (roomId: any, userId: any, id: any, ws: WebSocket) => {
+  console.log("informing other about new producer", id);
+
   producers.forEach((producerData) => {
-    if (producerData.userId !== userId && producerData.roomId === roomId) {
+    if (producerData.userId !== userId && producerData.roomId == roomId) {
       console.log("informing other user about a new producer just came.");
       producerData.ws.send(
         JSON.stringify({
@@ -82,6 +84,8 @@ const informConsumer = (roomId: any, userId: any, id: any) => {
           producerId: id,
         })
       );
+    } else {
+      console.log("not matched");
     }
   });
 };
@@ -99,7 +103,7 @@ const addProducer = async (
   roomId: any,
   ws: WebSocket
 ) => {
-  producers = [...producers, { producer, userId, roomId, ws }];
+  producers.push({ producer, userId, roomId, ws });
 };
 const getTranport = (userId: any, roomId: any) => {
   let tran;
@@ -127,7 +131,6 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
             rtcCapabilites: router?.rtpCapabilities,
           })
         );
-        return;
       } else {
         console.log("creating new route");
         const router = await worker?.createRouter({ mediaCodecs });
@@ -144,9 +147,7 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
       const roomId = message.roomId;
       const userId = message.userId;
       const router = routers.get(roomId);
-      console.log("create transport request", roomId, userId);
       if (router) {
-        console.log("creating transport");
         const transport = await createWebRtcTransport(router);
         if (transport) {
           transports.push({
@@ -171,52 +172,73 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
         }
       }
     } else if (message.type == "transport-connect") {
-      console.log("getting req for tranport connect", transports.length);
+      console.log("getting req for tranport connect");
       let transportt: any = getTranport(message.userId, message.roomId);
-      console.log("trans", transportt);
+      console.log("trans");
       if (transportt) {
         console.log("connectig tranport");
         transportt.connect({ dtlsParameters: message.dtlsParameters });
       }
     } else if (message.type == "transport-produce") {
-      console.log("getting req for transport-produce");
+      console.log("getting req for transport-produce", message);
       let trans: any = getTranport(message.userId, message.roomId);
       if (trans) {
         console.log("producing transport");
-        const producer = trans.produce({
+        const producer = await trans.produce({
           kind: message.kind,
           rtpParameters: message.rtpParameters,
         });
+        console.log("producer", producer.id);
+        if (producers.length > 1) {
+          let producersList: any[] = [];
+          producers.forEach((ele) => {
+            if (ele.roomId == message.roomId && ele.userId == message.userId) {
+              producersList.push(ele.id);
+            }
+          });
+          ws.send(
+            JSON.stringify({
+              type: "producer exist",
+              producers: producersList,
+            })
+          );
+        }
         addProducer(producer, message.userId, message.roomId, ws);
-        informConsumer(message.roomId, message.userId, producer.id);
+        informConsumer(message.roomId, message.userId, producer.id, ws);
         // producer.on("transportclose", () => {
         //   console.log("transport for this producer closed ");
         //   producer.close();
         // });
+      } else {
+        console.log("transport not found");
       }
     } else if (message.type == "transport-recv-connect") {
       console.log("transport-recv-connect");
-      const consumerTransport = transports.find(
+      const consumerTransport = await transports.find(
         (transportData) =>
           transportData.consumer &&
-          transportData.transport.id == message.serverConsumerTransportId
+          transportData?.transport?.id == message.serverConsumerTransportId
       ).transport;
       await consumerTransport.connect({
         dtlsParameters: message.dtlsParameters,
       });
     } else if (message.type == "consume") {
+      console.log("trying to consuming", message);
       const router = routers.get(message.roomId);
-      let consumerTransport = transports.find(
-        (transportData) =>
-          transportData.consumer && transportData.tranport.id == message.id
-      ).transport;
+      let { transport } = await transports.find((transportData) => {
+        return (
+          transportData.consumer &&
+          transportData?.transport?.id == message.serverConsumerTransportId
+        );
+      });
       if (
         router?.canConsume({
           producerId: message.remoteProducerId,
           rtpCapabilities: message.rtpCapabilities,
         })
       ) {
-        const consumer = await consumerTransport.consume({
+        console.log("start consume process");
+        const consumer = await transport.consume({
           producerId: message.remoteProducerId,
           rtpCapabilities: message.rtpCapabilities,
           paused: true,
@@ -233,9 +255,20 @@ wss.on("connection", (ws: WebSocket, req: Request) => {
           JSON.stringify({
             type: "consume",
             params,
+            transport: message.transport,
+            rpId: message.remoteProducerId,
           })
         );
+      } else {
+        console.log("not able to consume");
       }
+    } else if (message.type == "consumer-resume") {
+      console.log("resume request");
+      const { consumer } = consumers.find(
+        (consumerData) => consumerData.consumer.id == message.serverConsumerId
+      );
+      console.log("consumer", consumer);
+      await consumer.resume();
     }
   });
 });

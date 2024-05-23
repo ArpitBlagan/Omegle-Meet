@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { NavLink, useParams } from "react-router-dom";
 import * as mediasoupClient from "mediasoup-client";
 import shortid from "shortid";
+import { transcode } from "buffer";
 let params = {
   // mediasoup params
   encodings: [
@@ -29,20 +30,21 @@ let params = {
 const Meet = () => {
   const { roomId } = useParams();
   const yourRef = useRef(null);
-  const [userID, setUid] = useState("");
+  const [userId, setUid] = useState<string | null>(null);
   const [videoParams, setV] = useState(params);
   const [audioParams, setA] = useState({});
-  //const [socket, setSocket] = useState<WebSocket | null>(null);
-  //const [device, setD] = useState<mediasoupClient.types.Device | null>(null);
-  const [consumers, setConsumers] = useState<string[]>([]);
+  const [sock, setSocket] = useState<WebSocket | null>(null);
+  const [deviceee, setD] = useState<mediasoupClient.types.Device | null>(null);
+  const [consumers, setConsumers] = useState<any[]>([]);
+  const [pendingC, setPc] = useState<any[]>([]);
   const [producerTransport, setPT] = useState<
     mediasoupClient.types.Transport<mediasoupClient.types.AppData> | undefined
   >();
   const connectSendTransport = async (producer: any) => {
     console.log("connecting send transport", audioParams, videoParams);
     //this event trigger producer.on('connect') and producer.on('produce').
-    let audioProducer = await producer.produce(audioParams);
     let videoProducer = await producer.produce(videoParams);
+    let audioProducer = await producer.produce(audioParams);
     audioProducer?.on("trackended", () => {
       console.log("audio track ended");
 
@@ -67,7 +69,7 @@ const Meet = () => {
       // close video track
     });
   };
-  const getMedia = (ws: WebSocket, userId: any) => {
+  const getMedia = () => {
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {
@@ -82,14 +84,6 @@ const Meet = () => {
         yourRef.current.srcObject = stream;
         //@ts-ignore
         yourRef.current.play();
-        console.log("calling get rtcCapabilities");
-        ws.send(
-          JSON.stringify({
-            type: "getRtcCapabilites",
-            roomId,
-            userId,
-          })
-        );
       })
       .catch((err) => {
         console.log(err);
@@ -122,7 +116,7 @@ const Meet = () => {
       return;
     }
 
-    setConsumers((prev) => {
+    setPc((prev) => {
       return [...prev, consumer];
     });
     sock.send(
@@ -131,27 +125,72 @@ const Meet = () => {
         consumer: true,
         roomId: roomId,
         userId,
-        remoteProducerId: consumer.id,
+        remoteProducerId: consumer,
       })
     );
   };
-  const connectRecvTransport = (tranportt: any, pId: any, id: any) => {};
+  const connectRecvTransport = (
+    transport: any,
+    pId: any,
+    id: any,
+    ws: WebSocket,
+    devicee: any,
+    roId: any,
+    uId: any
+  ) => {
+    setConsumers((prev) => {
+      return [...prev, transport];
+    });
+    console.log("connect recv transport", pId, id, devicee.rtpCapabilities);
+    ws.send(
+      JSON.stringify({
+        type: "consume",
+        remoteProducerId: pId,
+        serverConsumerTransportId: id,
+        rtpCapabilities: devicee.rtpCapabilities,
+        transport,
+        roomId: roId,
+        userId: uId,
+      })
+    );
+  };
+
   useEffect(() => {
-    console.log("useEffect log", videoParams, audioParams);
-  }, [videoParams, audioParams]);
+    const socket = new WebSocket("ws://localhost:9000");
+    setSocket(socket);
+    const id = shortid.generate();
+    setUid(id);
+    getMedia();
+  }, []);
   useEffect(() => {
-    const sock = new WebSocket("ws://localhost:9000");
-    //setSocket(sock);
-    const userId = shortid.generate();
-    setUid(userId);
-    getMedia(sock, userId);
+    if (
+      !sock ||
+      //@ts-ignore
+      !audioParams?.track ||
+      //@ts-ignore
+      !videoParams?.track ||
+      !userId
+    ) {
+      console.log("cool");
+      return;
+    }
+    console.log("calling get rtcCapabilities");
+    sock.send(
+      JSON.stringify({
+        type: "getRtcCapabilites",
+        roomId,
+        userId,
+      })
+    );
+    console.log("useEffect log", videoParams, audioParams, sock, userId);
     let devicee: mediasoupClient.types.Device;
+    let consumerTransport: mediasoupClient.types.Transport<mediasoupClient.types.AppData>;
     sock.addEventListener("message", async (event) => {
       const message = JSON.parse(event.data);
       if (message.type === "getRtcCapabilites") {
         console.log(message);
         devicee = new mediasoupClient.Device();
-        //setD(devicee);
+        setD(devicee);
         //@ts-ignore
         //React.forceUpdate();
         await devicee.load({ routerRtpCapabilities: message.rtcCapabilites });
@@ -161,7 +200,8 @@ const Meet = () => {
         const params = message.params;
         console.log("getting params", params);
         if (message.consumer) {
-          const consumerTransport = devicee.createRecvTransport(params);
+          console.log("for Consumer");
+          consumerTransport = devicee.createRecvTransport(params);
           setConsumers((prev) => {
             return [...prev];
           });
@@ -190,12 +230,18 @@ const Meet = () => {
               }
             }
           );
+          console.log("device berfor calling connectRecvTransport", devicee);
           connectRecvTransport(
             consumerTransport,
             message.remoteProducerId,
-            params.id
+            params.id,
+            sock,
+            devicee,
+            roomId,
+            userId
           );
         } else {
+          console.log("not for consumer");
           //create producer tranport using the params of a tranport that is build in server.
           const producerTranportt = devicee.createSendTransport(params);
           setPT(producerTranportt);
@@ -236,7 +282,8 @@ const Meet = () => {
       } else if (message.type == "new-producer") {
         //when ever there will a new producer we need to make a consumer tranport so that
         //we can consume its media right and every new producer need to have an new consumer.
-        signalNewConsumerTransport(message.producer_id, sock, userId, roomId);
+        console.log("new producer is there in the room", message.producerId);
+        signalNewConsumerTransport(message.producerId, sock, userId, roomId);
       } else if (message.type == "transport-produce") {
         if (message.producerExist) {
           sock.send(
@@ -247,18 +294,74 @@ const Meet = () => {
             })
           );
         }
+      } else if (message.type == "producer-exist") {
+        console.log("producer exist already");
+        if (message.prodcuers) {
+          console.log("producer exist already");
+          message.producers.forEach((ele: any) => {
+            signalNewConsumerTransport(ele, sock, userId, roomId);
+          });
+        }
       } else if (message.type == "new-producer") {
         console.log("new producer added");
         signalNewConsumerTransport(message.id, sock, userId, roomId);
+      } else if (message.type == "consume") {
+        console.log("consume event finally", message);
+        let trans: any = message.transport;
+        console.log(trans, trans.consume);
+        const consumer = await consumerTransport.consume({
+          id: message.params.id,
+          producerId: message.params.producerId,
+          kind: message.params.kind,
+          rtpParameters: message.params.rtpParameters,
+        });
+        setConsumers((prev) => {
+          return [
+            ...prev,
+            {
+              transport: message.transport,
+              consumer,
+              serverConsumerTransportId: message.params.id,
+              producerId: message.rpId,
+            },
+          ];
+        });
+        const newElem = document.createElement("div");
+
+        if (message.params.kind == "audio") {
+          console.log("cool");
+          //append to the audio container
+          newElem.innerHTML =
+            '<audio id="' + message.rpId + '" autoplay></audio>';
+        } else {
+          console.log("hot");
+          //append to the video container
+          newElem.setAttribute("class", "remoteVideo");
+          newElem.innerHTML =
+            '<video id="' + message.rpId + '" autoplay class="video" ></video>';
+        }
+        document.getElementById("conference")?.appendChild(newElem);
+        const { track } = consumer;
+        //@ts-ignore
+        document.getElementById(message.rpId).srcObject = new MediaStream([
+          track,
+        ]);
+        console.log("resume the consumer");
+        sock.send(
+          JSON.stringify({
+            type: "consumer-resume",
+            serverConsumerId: message.params.serverConsumerId,
+          })
+        );
       }
     });
-  }, []);
+  }, [videoParams, audioParams, userId, sock]);
   return (
     <div className="min-h-[80dvh] mt-2 bg-gray-500 rounded-xl py-2 px-4 flex flex-col items-center">
       <h1 className="text-xl px-2 py-1 rounded-xl  my-1 w-1/2 font-mono bg-gradient-to-r from-blue-600 via-red-300 to-indigo-400 inline-block text-transparent bg-clip-text">
         Video-Conference
       </h1>
-      <div className="grid md:grid-cols-3 gap-3 ">
+      <div id="conference" className="grid md:grid-cols-3 gap-3 ">
         <div className="py-2 px-3 bg-gray-800 rounded-xl">
           <video ref={yourRef} className="rounded-xl blur"></video>
           <p className="text-white">You</p>

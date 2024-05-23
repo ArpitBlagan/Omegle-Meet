@@ -44,7 +44,7 @@ const Navbar = () => {
       <div className="flex-1 flex items-center justify-end">
         {value?.isLoggedIn ? (
           <div className="flex gap-4 items-center">
-            <Link to="/room">Create-Room</Link>
+            <Link to="/room">Rooms</Link>
             <Menubar className="bg-red-400">
               <MenubarMenu>
                 <MenubarTrigger className="cursor-pointer">
