@@ -16,9 +16,8 @@ clone it
 </p>
 
 ```bash
-    I am using ws library for using websocket because i personally like it but there are some case in sfu where we to get back the data at the same place where will emit
-    or send it and call another function to that data. so socket.io is recommeded earlier
-    I am not aware about it and now its giving some errors.
+    I am using ws library for using websocket because i personally like it but there are some case in sfu we want to get back the data at the same place where emit
+    or send it and call another function on data that we get back. So socket.io is recommeded earlier I am not aware about it and now its giving some errors.
 ```
 
 <div align="center">
